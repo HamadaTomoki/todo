@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 dotenv = "0.15.0"
+notion =  "0.5.1"
