@@ -8,4 +8,37 @@ edition = "2021"
 [dependencies]
 dotenv = "0.15.0"
 dotenv_codegen = "0.15.0"
-notion =  "1.5.1"
+notion =  "0.5.1"
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+
+[dependencies.chrono]
+version = "0.4"
+default-features = false
+features = ["serde", "clock"]
+
+[dependencies.reqwest]
+version = "0.11"
+features = ["json"]
+
+[dependencies.tokio]
+version = "1"
+features = ["full"]
+
+[dependencies.serde]
+version = "1.0"
+features = ["derive"]
+
+[dev-dependencies]
+cargo-husky = "1"
+wiremock = "0.5.2"
+anyhow = "1.0.40"
+clap = { version = "4.0", features = ["derive"] }
+skim = "0.10.2"
+crossbeam-channel = "0.5"
+toml = "0.5.8"
+
+[dev-dependencies.config]
+version = "0.11.0"
+features = ["toml"]
