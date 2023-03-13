@@ -1,5 +1,6 @@
 # Own Config
 .env
+Secrets.toml
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,linux,windows,rust
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,linux,windows,rust
