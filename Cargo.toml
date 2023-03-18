@@ -16,7 +16,7 @@ config = { version = "0.13.3", features = ["toml"] }
 clap = { version = "4.0", features = ["derive"] }
 
 [dependencies.chrono]
-version = "0.4"
+version = "0.4.23"
 default-features = false
 features = ["serde", "clock"]
 
