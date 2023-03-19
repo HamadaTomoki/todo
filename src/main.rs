@@ -1,18 +1,19 @@
-use std::{collections::HashMap, fmt, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use anyhow::{Context, Ok, Result};
 use chrono::NaiveDate;
 use clap::Parser;
 use config::Config;
 use notion::{
-    ids::{AsIdentifier, DatabaseId, Identifier, PageId, PropertyId},
+    ids::{DatabaseId, PropertyId},
     models::{
         properties::{
-            Color, DateOrDateTime, DateValue, PropertyValue, Relation, RelationValue, SelectedValue,
+            Color, DateOrDateTime, DateValue, PropertyValue, RelationValue, SelectOptionId,
+            SelectedValue,
         },
         search::DatabaseQuery,
         text::{RichText, RichTextCommon, Text},
-        Page, PageCreateRequest, Parent, Properties,
+        PageCreateRequest, Parent, Properties,
     },
     NotionApi,
 };
@@ -21,12 +22,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Task {
-    name: PropertyValue,
-    status: PropertyValue,
-    category: PropertyValue,
-    project: PropertyValue,
-    scheduled_date: PropertyValue,
-    mind: PropertyValue,
+    name: (String, PropertyValue),
+    status: (String, PropertyValue),
+    category: (String, PropertyValue),
+    project: (String, PropertyValue),
+    scheduled_date: (String, PropertyValue),
+    mind: (String, PropertyValue),
 }
 // impl Default for Task {
 //     fn default() -> Self {
@@ -41,19 +42,6 @@ struct Task {
 //     }
 // }
 
-impl fmt::Display for Task {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            name => write!(f, "名前"),
-            status => write!(f, "ステータス"),
-            category => write!(f, "タスク種別"),
-            project => write!(f, "プロジェクト"),
-            scheduled_date => write!(f, "実施予定日"),
-            mind => write!(f, "気持ち"),
-        }
-    }
-}
-
 #[derive(Parser, Debug)]
 #[clap(version = "1.0", author = "novum")]
 struct Opts {
@@ -63,7 +51,7 @@ struct Opts {
 #[derive(Parser, Debug)]
 enum SubCommand {
     List,
-    Add,
+    Add { task_name: Option<String> },
 }
 #[derive(Deserialize, Serialize, Clone)]
 struct TodoConfig {
@@ -87,7 +75,7 @@ async fn main() -> Result<()> {
             .expect("Failed to read NOTION_API_TOKEN"),
     )?;
 
-    // Get database instance from database_id
+    // Get database instance by database_id
     let database_id = config
         .clone()
         .database_id
@@ -96,7 +84,13 @@ async fn main() -> Result<()> {
     // Use command
     match opts.command {
         SubCommand::List => list_tasks(notion_api, database_id).await,
-        SubCommand::Add => add_task(notion_api, database_id).await,
+        SubCommand::Add { task_name } => {
+            if let Some(task) = task_name {
+                add_task(notion_api, database_id, task).await
+            } else {
+                Ok(())
+            }
+        }
     }
 }
 
@@ -113,73 +107,93 @@ async fn list_tasks(notion_api: NotionApi, database_id: DatabaseId) -> Result<()
     Ok(())
 }
 
-async fn add_task(notion_api: NotionApi, database_id: DatabaseId) -> Result<()> {
+async fn add_task(notion_api: NotionApi, database_id: DatabaseId, task_name: String) -> Result<()> {
     let task = Task {
-        name: PropertyValue::Title {
-            id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
-            title: vec![RichText::Text {
-                rich_text: RichTextCommon {
-                    plain_text: "".into(),
-                    href: None,
-                    annotations: None,
-                },
-                text: Text {
-                    content: "".into(),
-                    link: None,
-                },
-            }],
-        },
-        status: PropertyValue::Status {
-            id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
-            status: Some(SelectedValue {
-                id: None,
-                name: Some("".into()),
-                color: Color::Default,
-            }),
-        },
-        category: PropertyValue::Select {
-            id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
-            select: Some(SelectedValue {
-                id: None,
-                name: Some("".into()),
-                color: Color::Default,
-            }),
-        },
-        project: PropertyValue::Relation {
-            id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
-            relation: None,
-        },
-        scheduled_date: PropertyValue::Date {
-            id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
-            date: Some(DateValue {
-                start: DateOrDateTime::Date {
-                    0: NaiveDate::default(),
-                },
-                end: None,
-                time_zone: None,
-            }),
-        },
-        mind: PropertyValue::Text {
-            id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
-            rich_text: vec![RichText::Text {
-                rich_text: RichTextCommon {
-                    plain_text: "".into(),
-                    href: None,
-                    annotations: None,
-                },
-                text: Text {
-                    content: "".into(),
-                    link: None,
-                },
-            }],
-        },
+        name: (
+            "名前".into(),
+            PropertyValue::Title {
+                id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
+                title: vec![RichText::Text {
+                    rich_text: RichTextCommon {
+                        plain_text: "".into(),
+                        href: None,
+                        annotations: None,
+                    },
+                    text: Text {
+                        content: task_name,
+                        link: None,
+                    },
+                }],
+            },
+        ),
+        status: (
+            "ステータス".into(),
+            PropertyValue::Status {
+                id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
+                status: Some(SelectedValue {
+                    id: None,
+                    name: Some("未着手".into()),
+                    color: Color::Default,
+                }),
+            },
+        ),
+        category: (
+            "タスク種別".into(),
+            PropertyValue::Select {
+                id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
+                select: None,
+            },
+        ),
+        project: (
+            "プロジェクト".to_string(),
+            PropertyValue::Relation {
+                id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
+                relation: Some(vec![]),
+            },
+        ),
+        scheduled_date: (
+            "実施予定日".into(),
+            PropertyValue::Date {
+                id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
+                date: Some(DateValue {
+                    start: DateOrDateTime::Date {
+                        0: NaiveDate::default(),
+                    },
+                    end: None,
+                    time_zone: None,
+                }),
+            },
+        ),
+        mind: (
+            "気持ち".into(),
+            PropertyValue::Text {
+                id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
+                rich_text: vec![RichText::Text {
+                    rich_text: RichTextCommon {
+                        plain_text: "".into(),
+                        href: None,
+                        annotations: None,
+                    },
+                    text: Text {
+                        content: "".into(),
+                        link: None,
+                    },
+                }],
+            },
+        ),
     };
     let mut properties: HashMap<String, PropertyValue> = HashMap::new();
-    // properties.insert("source".into());
+    properties.insert(task.name.0, task.name.1);
+    properties.insert(task.status.0, task.status.1);
+    properties.insert(task.category.0, task.category.1);
+    properties.insert(task.project.0, task.project.1);
+    properties.insert(task.scheduled_date.0, task.scheduled_date.1);
+    properties.insert(task.mind.0, task.mind.1);
     let properties = Properties { properties };
     let req = PageCreateRequest {
         parent: Parent::Database { database_id },
         properties,
     };
+    notion_api.create_page(req).await?;
     Ok(())
 }
