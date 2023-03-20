@@ -7,10 +7,7 @@ use config::Config;
 use notion::{
     ids::{DatabaseId, PropertyId},
     models::{
-        properties::{
-            Color, DateOrDateTime, DateValue, PropertyValue, RelationValue, SelectOptionId,
-            SelectedValue,
-        },
+        properties::{Color, DateOrDateTime, DateValue, PropertyValue, SelectedValue},
         search::DatabaseQuery,
         text::{RichText, RichTextCommon, Text},
         PageCreateRequest, Parent, Properties,
