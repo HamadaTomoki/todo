@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use anyhow::{Context, Ok, Result};
-use chrono::NaiveDate;
+use chrono::Utc;
 use clap::Parser;
 use config::Config;
 use notion::{
@@ -38,7 +38,6 @@ struct Task {
 //         }
 //     }
 // }
-
 #[derive(Parser, Debug)]
 #[clap(version = "1.0", author = "novum")]
 struct Opts {
@@ -58,13 +57,15 @@ struct TodoConfig {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Setup Notion API
+    // Set notion confik
     let opts = Opts::parse();
     let config = Config::builder()
         .add_source(config::File::with_name("Secrets"))
         .add_source(config::Environment::with_prefix("NOTION"))
         .build()?;
     let config: TodoConfig = config.try_deserialize().context("Failed to read config")?;
+
+    // Get API Token
     let notion_api = NotionApi::new(
         config
             .clone()
@@ -154,7 +155,7 @@ async fn add_task(notion_api: NotionApi, database_id: DatabaseId, task_name: Str
                 id: PropertyId::from_str(&Uuid::new_v4().to_string()).unwrap(),
                 date: Some(DateValue {
                     start: DateOrDateTime::Date {
-                        0: NaiveDate::default(),
+                        0: Utc::now().date_naive(),
                     },
                     end: None,
                     time_zone: None,
